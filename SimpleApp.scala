@@ -1,5 +1,6 @@
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, input_file_name}
+import org.apache.spark.sql.functions.{col, from_json}
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object SimpleApp {
   def main(args: Array[String]) {
@@ -16,73 +17,73 @@ object SimpleApp {
     val totalNumberOfRecords = spark.sql("Select count(distinct *) from analyticsView").show()
 
     //Answers the Query 1>> Distribution of event Types
-              /** +---------------+--------+
-                  |          event|count(1)|
-                  +---------------+--------+
-                  |    Viewed Page| 2098003|
-                  |Content Clicked| 1142911|
-                  |  Watched Video| 1143215|
-                  |   Ad Requested| 1142911|
-                  |  Started Video| 1143215|
-                  +---------------+--------+
-     **/
+    /** +---------------+--------+
+     *  |          event|count(1)|
+     *  +---------------+--------+
+     *  |    Viewed Page| 2098003|
+     *  |Content Clicked| 1142911|
+     *  |  Watched Video| 1143215|
+     *  |   Ad Requested| 1142911|
+     *  |  Started Video| 1143215|
+     *  +---------------+--------+
+     * */
     val eventType = spark.sql("Select event,count(*) from analyticsView group by event").show()
 
     //Answers the Query 3 >> Which Platform users prefers to watch content  >> Android
     /**
-
-      +---------+---------+
-      | platform|noOfUsers|
-      +---------+---------+
-      |  ANDROID|     5014|
-      |      WEB|     2440|
-      |      IOS|     1661|
-      |      IOS|     1661|
-      |FIRESTICK|      885|
-      +---------+---------+
-    */
+     *
+     *  +---------+---------+
+     *  | platform|noOfUsers|
+     *  +---------+---------+
+     *  |  ANDROID|     5014|
+     *  |      WEB|     2440|
+     *  |      IOS|     1661|
+     *  |      IOS|     1661|
+     *  |FIRESTICK|      885|
+     *  +---------+---------+
+     */
     val preferredPlatform = spark.sql("select context.traits.platform, count(distinct userid) as noOfUsers from analyticsView where event = 'Watched Video' group by context.traits.platform sort by noOfUsers desc").show(100)
 
 
     //Answers the Query 4 >> Most Popular Content by Title across all the users basis no of views
     /**
-                   * +-----------------+--------------+
-                    |realtitle        |totalNoOfViews|
-                    +-----------------+--------------+
-                    |Curly            |17986         |
-                    |Spinach          |17979         |
-                    |Kale             |17934         |
-                    |English Cucumber |9262          |
-                    |Escarole         |9204          |
-                    |Candle Corn      |9189          |
-                    |Parsnip          |9178          |
-                    |Nopales          |9160          |
-                    |Lotus Seed       |9148          |
-                    |Beet Greens      |9121          |
-                    +-----------------+--------------+
+     * +-----------------+--------------+
+     *  |realtitle        |totalNoOfViews|
+     *  +-----------------+--------------+
+     *  |Curly            |17986         |
+     *  |Spinach          |17979         |
+     *  |Kale             |17934         |
+     *  |English Cucumber |9262          |
+     *  |Escarole         |9204          |
+     *  |Candle Corn      |9189          |
+     *  |Parsnip          |9178          |
+     *  |Nopales          |9160          |
+     *  |Lotus Seed       |9148          |
+     *  |Beet Greens      |9121          |
+     *  +-----------------+--------------+
      */
-    var popularContentByTitle = spark.sql("select SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle, count(*) as totalNoOfViews  from analyticsView where event = 'Watched Video' group by realtitle sort by totalNoOfViews desc").show(10,false)
+    var popularContentByTitle = spark.sql("select SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle, count(*) as totalNoOfViews  from analyticsView where event = 'Watched Video' group by realtitle sort by totalNoOfViews desc").show(10, false)
 
     //Answers the Query 4 >> Most Popular Content by Title across all the users total Length of Video Watched
     /**
      * Popular Content By title basis total Length of Video Watched
      *
-       *      +-----------------+-------------------------+
-              |realtitle        |totalLengthOfVideoWatched|
-              +-----------------+-------------------------+
-              |Spinach          |32472158                 |
-              |Curly            |32450450                 |
-              |Kale             |31902867                 |
-              |Beet Greens      |16731536                 |
-              |Candle Corn      |16676805                 |
-              |Escarole         |16627345                 |
-              |Zucchini         |16584718                 |
-              |Capers           |16583310                 |
-              |Parsnip          |16570268                 |
-              |English Cucumber |16539934                 |
-              +-----------------+-------------------------+
+     * +-----------------+-------------------------+
+     *  |realtitle        |totalLengthOfVideoWatched|
+     *  +-----------------+-------------------------+
+     *  |Spinach          |32472158                 |
+     *  |Curly            |32450450                 |
+     *  |Kale             |31902867                 |
+     *  |Beet Greens      |16731536                 |
+     *  |Candle Corn      |16676805                 |
+     *  |Escarole         |16627345                 |
+     *  |Zucchini         |16584718                 |
+     *  |Capers           |16583310                 |
+     *  |Parsnip          |16570268                 |
+     *  |English Cucumber |16539934                 |
+     *  +-----------------+-------------------------+
      */
-    var popularContentByTileBasisVideoLengthWatched = spark.sql("select SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle, sum(properties.video_length) as totalLengthOfVideoWatched  from analyticsView where event = 'Watched Video' group by realtitle sort by totalLengthOfVideoWatched desc").show(10,false)
+    var popularContentByTileBasisVideoLengthWatched = spark.sql("select SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle, sum(properties.video_length) as totalLengthOfVideoWatched  from analyticsView where event = 'Watched Video' group by realtitle sort by totalLengthOfVideoWatched desc").show(10, false)
 
 
     /* Answers the Query 5 >> Does the number of ads displayed affect how much content the user sees?
@@ -256,49 +257,79 @@ object SimpleApp {
     var perUserView = spark.sql("select *, totalVideoLength/totalusers as averageViewingTime from contentViewingStatsBySubscriptionStatus sort by realtitle desc, averageViewingTime desc");
     perUserView.createOrReplaceTempView("perUserView");
     val selfJoinDF = perUserView.as("v1").join(perUserView.as("v2"), col("v1.realtitle") === col("v2.realtitle"), "inner");
-    val selfJoinDFRenamed = selfJoinDF.select(col("v1.realtitle"), col("v1.subscription_status").as("source") , col("v2.subscription_status").as("target"), col("v1.averageViewingTime").as("sourceAVT"), col("v2.averageViewingTime").as("targetAVT"));
+    val selfJoinDFRenamed = selfJoinDF.select(col("v1.realtitle"), col("v1.subscription_status").as("source"), col("v2.subscription_status").as("target"), col("v1.averageViewingTime").as("sourceAVT"), col("v2.averageViewingTime").as("targetAVT"));
     selfJoinDFRenamed.createOrReplaceTempView("selfJoinDF");
     spark.sql("select count(*) from selfJoinDF where source = 'PREMIUM' and target != 'PREMIUM' and sourceAVT > targetAVT").show(1500)
 
 
+    /**
+     * Answer Type 1: Different plans for mobiles subscription vs web
+     * Mobile seems to be preferred platform for content consumption both in Free, Freemium and Paid. Lot of users
+     * can be converted into paying customers by having a new mobile subscription plan with reduced cost
+     *
+     * +-------------------+---------+----------------------------+
+     *  |subscription_status| platform|((count(1) * 100) / 1143215)|
+     *  +-------------------+---------+----------------------------+
+     *  |               FREE|  ANDROID|          16.947380851370916|
+     *  |               FREE|FIRESTICK|           2.763522172119855|
+     *  |               FREE|      IOS|           5.572530101511964|
+     *  |               FREE|      WEB|           8.247005156510367|
+     *  |           FREEMIUM|  ANDROID|          16.602476349593033|
+     *  |           FREEMIUM|FIRESTICK|          2.8756620583179893|
+     *  |           FREEMIUM|      IOS|            5.37624156436016|
+     *  |           FREEMIUM|      WEB|            7.69522793175387|
+     *  |            PREMIUM|  ANDROID|          16.634141434463334|
+     *  |            PREMIUM|FIRESTICK|           3.253806151948671|
+     *  |            PREMIUM|      IOS|            5.64871874494299|
+     *  |            PREMIUM|      WEB|           8.383287483106852|
+     *  +-------------------+---------+----------------------------+
+     *
+     *
+     */
+    spark.sql("select context.traits.platform, count(*)*100/1143215  from analyticsView where event = 'Watched Video' group by context.traits.platform").show
+    spark.sql("select context.traits.subscription_status, context.traits.platform, count(*)*100/1143215  from analyticsView where event = 'Watched Video' group by context.traits.subscription_status, context.traits.platform sort by context.traits.subscription_status, context.traits.platform").show
 
-
-//Miscellaenous queries
-
-    var randomQuery = spark.sql("select context.traits.plan_type,context.traits.subscription_status, properties.requested_tag from analyticsView")
-
-    var randomQuery1 = spark.sql("select context.traits.subscription_status,context.page.title, context.traits.plan_type, properties.ad_placement, properties.video_length, properties.watch_time from analyticsView where event = 'Ad Requested'sort by context.page.title asc")
-
-    var groupingEventsByTitles = spark.sql("select context.page.title,userId,event,count(*) from analyticsView group by context.page.title,userId,event")
-
-      var groupbyPageTitleUsers = spark.sql("select context.page.title,userId,count(*) as events from analyticsView group by context.page.title,userId having events > 1 sort by events desc")
-
-    var groupbyPageTitleUsers1 = spark.sql("select context.page.title,event,count(*) as events from analyticsView  where userid='0e077c74-e83c-1e6e-5e45-cb77bbb023c1' and context.page.title='Eggplant - Watch Episode 4 - Salmon pasta bake on acmeflix' group by context.page.title,event")
-
-    var groupbyPageTitleUsers2 = spark.sql("select context.page.title,event from analyticsView  where userid='0e077c74-e83c-1e6e-5e45-cb77bbb023c1' and context.page.title='Eggplant - Watch Episode 4 - Salmon pasta bake on acmeflix'")
-
-    //user video watching behaviour
-    var groupbyPageTitleUsers3 = spark.sql("select context.page.title,event,properties.watch_time, properties.video_length,timestamp, sentAt from analyticsView  where userid='0e077c74-e83c-1e6e-5e45-cb77bbb023c1' and context.page.title='Eggplant - Watch Episode 4 - Salmon pasta bake on acmeflix' and event in ('Started Video','Ad Requested') sort by timestamp asc")
-
-    var splitString = spark.sql("select split(context.page.title,'-') as realtitle from analyticsView")
-
-    var splitString1 = spark.sql("select SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle from analyticsView")
-
-    var testData =  spark.sql("select properties.playback_tag from analyticsView where properties.playback_tag is not null")
-    //https://sparkbyexamples.com/spark/spark-parse-json-from-text-file-string/
-
-
-    var testData1 =  spark.sql("select userid, SUBSTRING_INDEX(context.page.title, '-', 1) as realtitle from analyticsView where SUBSTRING_INDEX(context.page.title, '-', 1) = 'spinach'")
-
-
-    val test = spark.sql("select v1.realtitle from selfJoinDF ")
-
-
-    //Miscellaenous questions and answers
-
-
-    /*  var genericQuery = spark.sql("select context.page.title as title, context.traits.subscription_status,properties.instance_watch_time as iwt, properties.watch_time as wt, properties.video_length as vl, properties.user_action,event from analyticsView where event = 'Watched Video' sort by title")
-
-      val genericQuery = spark.sql("select userid,context.page.title, context.traits.subscription_status,properties.instance_watch_time, properties.watch_time, properties.video_length,event from analyticsView where context.page.title = 'Potato - Watch Episode 3 - Chicken herby pasta bake on acmeflix' and event = 'Watched Video' sort by properties.video_length desc")*/
+    /**
+     * Another strategy would be to have HD vs SD vs Full HD basis different pricing strategy
+     * Basis below data it seems content is been requested in either Full HD/HD but content is been served only in SD
+     * A cheaper pricing plan can be created for SD streaming - for areas of intermittent connectivity or poor internet issue
+     *
+     * Assumption is: requestedTag resolution indicates what content Type is requested SD/HD/FHD
+     * playbackTag signifies what is actually streamed SD/HD/FHD
+     *    +--------+
+          |count(1)|
+          +--------+
+          | 1143215|
+          +--------+
+     */
+    spark.sql("select count(*) from analyticsView where (contains(properties.requested_tag,'\"resolution\":\"fhd\"') or contains(properties.requested_tag,'\"resolution\":\"hd\"')) and contains(properties.playback_tag,'\"resolution\":\"sd\"')  and event = 'Watched Video'")
   }
 }
+
+/** Parsing String as JSON Schema
+ *
+ *  val testData: DataFrame = spark.sql("select properties.playback_tag, properties.requested_tag, properties.client_capabilities from analyticsView where properties.playback_tag is not null")
+    //https://sparkbyexamples.com/spark/spark-parse-json-from-text-file-string/
+
+    /*
+    {"audio_channel":"stereo","container":"fmp4","dynamic_range":"sdr","encryption":"widevine","ladder":"tv","package":"dash","resolution":"fhd","video_codec":"h264"}
+     */
+    import org.apache.spark.sql.types.{StringType, StructType};
+
+    val playBackAndRequestedTagSchema = new StructType().add("audio_channel", StringType, true).add("container", StringType, true).add("dynamic_range", StringType, true).add("encryption", StringType, true).add("ladder", StringType, true).add("package", StringType, true).add("resolution", StringType, true).add("video_codec", StringType, true)
+
+    val playBackTag = testData.withColumn("myJson", from_json(col("playback_tag"), playBackAndRequestedTagSchema)).select("myJson.*")
+    playBackTag.createOrReplaceTempView("playBackTag");
+    spark.sql("select * from playBackTag")
+
+    val requestedTag = testData.withColumn("myJson", from_json(col("requested_tag"), playBackAndRequestedTagSchema)).select("myJson.*")
+    requestedTag.createOrReplaceTempView("requestedTag");
+    spark.sql("select * from requestedTag")
+
+    spark.sql("select count(*) from analyticsView where contains(properties.playback_tag,'\"resolution\":\"hd\"')  and event = 'Watched Video'")
+
+    spark.sql("select count(*) from analyticsView where contains(properties.requested_tag,'\"resolution\":\"hd\"')  and event = 'Watched Video'")
+    /* val clientCapabilitiesTagSchema =
+       new StructType().add("video_codec", ArrayType, true).add("containers", StringType, true).add("audio_channel", StringType, true).add("encryption", StringType, true).add("widevine_security_level", StringType, true).add("widevine_hdcp_version", StringType, true).add("ads", StringType, true).add("dvr", StringType, true).add("dynamicRange", StringType, true).add("ladder", StringType, true).add("package", StringType, true).add("resolution", StringType, true)
+    */
+ */
